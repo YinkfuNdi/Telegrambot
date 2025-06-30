@@ -689,10 +689,9 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
     
 
 def main():
-    
-       BOT_TOKEN = os.getenv("BOT_TOKEN")
-
-app = ApplicationBuilder().token(BOT_TOKEN).build()
+    try:
+        BOT_TOKEN = os.getenv("BOT_TOKEN")
+        app = ApplicationBuilder().token(BOT_TOKEN).build()
 
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CallbackQueryHandler(callback_handler))
@@ -700,12 +699,10 @@ app = ApplicationBuilder().token(BOT_TOKEN).build()
         app.add_handler(CommandHandler("reviews", reviews_command))
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("faqs", faqs_command))
-       
-
-
 
         print("✅ Bot is running...")
         app.run_polling()
+
     except Exception as e:
         print(f"❌ Error: {e}")
 
