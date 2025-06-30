@@ -2,6 +2,8 @@ import json
 import telegram
 from telegram.error import BadRequest
 import os
+from keep_alive import keep_alive
+
 
 with open("reviews.json", "r", encoding="utf-8") as f:
     REVIEWS = json.load(f)
