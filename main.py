@@ -438,7 +438,7 @@ def get_all_reviews():
 
 
 # --- Handlers ---
-ync def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Bot is live via webhook!")
 
 
