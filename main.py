@@ -439,7 +439,11 @@ def get_all_reviews():
 
 # --- Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Bot is live via webhook!")
+    await update.message.reply_text(
+        "🌍 Please select your country:",
+        reply_markup=get_country_keyboard()
+    )
+
 
 
 
@@ -464,6 +468,18 @@ async def callback_handler(update, context):
     query = update.callback_query
     await query.answer()
     data = query.data
+
+    if data.startswith("country_"):
+        country = data.split("_", 1)[1].replace('_', ' ')
+        context.user_data["country"] = country
+        await query.edit_message_text(
+            text=f"✅ You selected *{country}*.\nHere is the main menu:",
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id=update.effective_user.id, bot_data=context.bot_data)
+        )
+        return
+
+    # Other callback handling here
 
     if data == "how_it_works":
         new_text = "Here is how it works:\n1. Step one...\n2. Step two..."
