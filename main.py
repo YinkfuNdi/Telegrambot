@@ -1,7 +1,7 @@
 import json
 import telegram
 from telegram.error import BadRequest
-
+import os
 
 with open("reviews.json", "r", encoding="utf-8") as f:
     REVIEWS = json.load(f)
@@ -690,7 +690,9 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
 
 def main():
     try:
-        app = ApplicationBuilder().token("8067569796:AAEG4iwuNHQWfzTy9zO11LbNU9OnDrMVzLI").build()
+       BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+app = ApplicationBuilder().token(BOT_TOKEN).build()
 
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CallbackQueryHandler(callback_handler))
