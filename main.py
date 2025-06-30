@@ -1,19 +1,7 @@
 import os
-from telegram.ext import ApplicationBuilder, CommandHandler
-from telegram import Update
-from telegram.ext import ContextTypes
+import json
 
-
-
-with open("reviews.json", "r", encoding="utf-8") as f:
-    REVIEWS = json.load(f)
-
-
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
     ContextTypes,
@@ -24,8 +12,6 @@ from telegram.ext import (
 )
 from telegram.error import BadRequest
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import CommandHandler, ContextTypes
 
 
 # --- Country Options ---
