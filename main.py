@@ -456,8 +456,9 @@ def get_all_reviews():
 
 
 # --- Handlers ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🌍 Select your country:", reply_markup=get_country_keyboard())
+async def start(update, context):
+    await update.message.reply_text("✅ Bot is running!")
+
 
 async def reviews_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
