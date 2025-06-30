@@ -693,8 +693,16 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
 def main():
     try:
         BOT_TOKEN = os.getenv("BOT_TOKEN")
+        PORT = int(os.environ.get("PORT", 10000))
+        WEBHOOK_PATH = "/webhook"
+        HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+
+        if not BOT_TOKEN or not HOSTNAME:
+            raise ValueError("BOT_TOKEN or RENDER_EXTERNAL_HOSTNAME not set in environment.")
+
         app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+        # --- Handlers ---
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CallbackQueryHandler(callback_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
@@ -702,12 +710,20 @@ def main():
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("faqs", faqs_command))
 
-        print("✅ Bot is running...")
-        app.run_polling()
+        print("✅ Bot is running with webhook...")
+
+        # Set webhook
+        webhook_url = f"https://{HOSTNAME}{WEBHOOK_PATH}"
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            webhook_path=WEBHOOK_PATH,
+            webhook_url=webhook_url,
+        )
 
     except Exception as e:
         print(f"❌ Error: {e}")
 
 if __name__ == "__main__":
-    keep_alive()
-    main()
+    keep_alive()  # Starts Flask server to keep bot alive
+    main()        # Starts the Telegram bot using webhook
