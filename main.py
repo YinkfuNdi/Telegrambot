@@ -3,6 +3,7 @@ import telegram
 from telegram.error import BadRequest
 import os
 from keep_alive import app as keep_alive_app
+PORT = int(os.environ.get("PORT", 10000))  
 
 
 
