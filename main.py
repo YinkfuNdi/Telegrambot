@@ -1,16 +1,13 @@
 import os
-import json
-
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
-    ContextTypes,
     CommandHandler,
     CallbackQueryHandler,
     MessageHandler,
-    filters,
+    ContextTypes,
+    filters
 )
-from telegram.error import BadRequest
+from telegram import Update
 
 
 
@@ -441,8 +438,8 @@ def get_all_reviews():
 
 
 # --- Handlers ---
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("✅ Webhook bot is running!")
+ync def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Bot is live via webhook!")
 
 
 
@@ -679,32 +676,29 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
     
 
 def main():
-    try:
-        print("Starting bot...")
-        BOT_TOKEN = os.getenv("BOT_TOKEN")
-        PORT = int(os.environ.get("PORT", 10000))
-        WEBHOOK_PATH = "/webhook"
-        HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+    BOT_TOKEN = os.getenv("BOT_TOKEN")
+    HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
+    PORT = int(os.environ.get("PORT", 10000))
+    WEBHOOK_PATH = "/webhook"
 
-        if not BOT_TOKEN or not HOSTNAME:
-            raise ValueError("BOT_TOKEN or RENDER_EXTERNAL_HOSTNAME not set.")
+    if not BOT_TOKEN or not HOSTNAME:
+        raise Exception("❌ BOT_TOKEN or RENDER_EXTERNAL_HOSTNAME not set.")
 
-        app = ApplicationBuilder().token(BOT_TOKEN).build()
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-        print("Adding handlers...")
-        app.add_handler(CommandHandler("start", start))
-        app.add_handler(CallbackQueryHandler(callback_handler))
-        app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
-        app.add_handler(CommandHandler("reviews", reviews_command))
-        app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("faqs", faqs_command))
+    # ✅ Add handler
+    app.add_handler(CommandHandler("start", start))
+    # app.add_handler(...)  # Your other handlers can go here
 
-        print(f"Running webhook on port {PORT}...")
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            url_path=WEBHOOK_PATH,
-            webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}"
-        )
-    except Exception as e:
-        print(f"❌ Error: {e}")
+    print(f"✅ Starting webhook server on port {PORT}...")
+    print(f"🔗 Webhook URL: https://{HOSTNAME}{WEBHOOK_PATH}")
+
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=WEBHOOK_PATH,
+        webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}"
+    )
+
+if __name__ == "__main__":
+    main()
