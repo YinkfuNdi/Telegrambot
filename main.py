@@ -500,16 +500,79 @@ from telegram.error import BadRequest
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    user_id = query.from_user.id
+    await query.answer()
     data = query.data
+    user_id = update.effective_user.id
 
-    try:
-        await query.answer()
-    except BadRequest as e:
-        if "Query is too old" in str(e) or "query id is invalid" in str(e):
-            pass
-        else:
-            raise
+    if data.startswith("country_"):
+        country = data.split("_", 1)[1].replace('_', ' ')
+        context.user_data["country"] = country
+        await query.edit_message_text(
+            text=f"✅ You selected *{country}*.\nHere is the main menu:",
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id, context.bot_data)
+        )
+
+    elif data == "main_menu":
+        await query.edit_message_text(
+            text="🏠 Main Menu:",
+            reply_markup=main_menu(user_id, context.bot_data)
+        )
+
+    elif data == "products":
+        await query.edit_message_text(
+            text="🎁 Select a category:",
+            reply_markup=get_products_keyboard()
+        )
+
+    elif data.startswith("category_"):
+        category_key = data.split("_", 1)[1]
+        await query.edit_message_text(
+            text=f"📂 Subcategories under *{CATEGORIES[category_key]['name']}*:",
+            parse_mode="Markdown",
+            reply_markup=get_subcategories_keyboard(category_key)
+        )
+
+    elif data.startswith("subcategory|"):
+        _, category_key, sub_key = data.split("|")
+        await query.edit_message_text(
+            text="🛍 Choose a product:",
+            reply_markup=get_product_keyboard(category_key, sub_key)
+        )
+
+    elif data.startswith("product|"):
+        _, category_key, sub_key, product_key = data.split("|")
+        product = CATEGORIES[category_key]["subcategories"][sub_key]["products"][product_key]
+        await query.edit_message_text(
+            text=f"*{product['name']}*\nSelect a quantity:",
+            parse_mode="Markdown",
+            reply_markup=get_quantity_keyboard(category_key, sub_key, product_key)
+        )
+
+    elif data.startswith("quantity|"):
+        _, category_key, sub_key, product_key, qty = data.split("|")
+        cart = context.bot_data.setdefault("cart", {}).setdefault(user_id, [])
+        cart.append({
+            "category": category_key,
+            "subcategory": sub_key,
+            "product": product_key,
+            "quantity": qty
+        })
+        await query.edit_message_text(
+            text=f"✅ Added *{qty}* of *{product_key.replace('_', ' ').title()}* to your cart!",
+            parse_mode="Markdown",
+            reply_markup=main_menu(user_id, context.bot_data)
+        )
+
+    elif data.startswith("custom_qty|"):
+        _, category_key, sub_key, product_key = data.split("|")
+        context.user_data["awaiting_custom_qty"] = {
+            "category": category_key,
+            "subcategory": sub_key,
+            "product": product_key
+        }
+        await query.edit_message_text("✏️ Please type the quantity you want (e.g. 10g, 2 units, etc.)")
+
 
     
 
