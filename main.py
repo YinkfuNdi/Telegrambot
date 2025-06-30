@@ -689,7 +689,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
     
 
 def main():
-    try:
+    
        BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 app = ApplicationBuilder().token(BOT_TOKEN).build()
