@@ -1,9 +1,7 @@
-import json
-import telegram
-from telegram.error import BadRequest
 import os
-from keep_alive import app as keep_alive_app
-PORT = int(os.environ.get("PORT", 10000))
+from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram import Update
+from telegram.ext import ContextTypes
 
 
 
@@ -457,8 +455,8 @@ def get_all_reviews():
 
 
 # --- Handlers ---
-async def start(update, context):
-    await update.message.reply_text("✅ Bot is running!")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("✅ Webhook bot is running!")
 
 
 
