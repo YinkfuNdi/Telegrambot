@@ -702,7 +702,7 @@ def main():
 
         app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-        # Add all handlers
+        # Handlers
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CallbackQueryHandler(callback_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
