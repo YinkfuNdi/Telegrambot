@@ -705,6 +705,8 @@ def main():
 
     # ✅ Add handler
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(callback_handler))
+
     # app.add_handler(...)  # Your other handlers can go here
 
     print(f"✅ Starting webhook server on port {PORT}...")
