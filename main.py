@@ -459,7 +459,7 @@ def get_all_reviews():
 # --- Handlers ---
 async def start(update, context):
     await update.message.reply_text("✅ Bot is running!")
-)
+
 
 
 async def reviews_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
