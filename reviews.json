@@ -1,0 +1,48 @@
+{
+  "mint_chocolate_chip": [
+    {"stars": 5, "text": "Smooth smoke and a strong balanced high. One of the best hybrids I’ve had."},
+    {"stars": 4, "text": "Love the minty aftertaste. Effects are smooth and calming."}
+  ],
+  "wizard_tree": [
+    {"stars": 5, "text": "Gave me a creative, energetic boost. Great daytime strain!"},
+    {"stars": 5, "text": "Laser-sharp focus for hours. Truly energizing and clean."}
+  ],
+  "golden_pineapple": [
+    {"stars": 5, "text": "Tropical flavor hits hard. Loved every puff!"},
+    {"stars": 4, "text": "Sweet and smooth. Great for focus and fun."}
+  ],
+  "snoop_dogg_og": [
+    {"stars": 5, "text": "Couch-lock in the best way. Deeply relaxing."},
+    {"stars": 4, "text": "Solid indica with great flavor and calming effects."}
+  ],
+  "watermelon_gelato": [
+    {"stars": 5, "text": "My go-to for calm nights. Delicious and relaxing."},
+    {"stars": 4, "text": "Fruity, mellow, and smooth on the exhale."}
+  ],
+  "peach_crescendo": [
+    {"stars": 5, "text": "Amazing for focus and mood. Very uplifting!"},
+    {"stars": 4, "text": "Got me giggly and productive. Great sativa."}
+  ],
+  "tropical_burst": [
+    {"stars": 5, "text": "Flavorful and bright. A true daytime treat!"}
+  ],
+  "blue_lobstar": [
+    {"stars": 5, "text": "Citrus-forward and clear-headed. One of my top picks!"},
+    {"stars": 4, "text": "Balanced buzz with amazing fruity aroma."}
+  ],
+  "cadillac_rainbow": [
+    {"stars": 5, "text": "Heavy, relaxing, and ideal for sleep. A+ indica."}
+  ],
+  "cherry_pie_og": [
+    {"stars": 4, "text": "Tart cherry notes and mellow effects. Easy to enjoy."}
+  ],
+  "candy_rain": [
+    {"stars": 4, "text": "Mild sweetness and light body buzz. Perfect for relaxing evenings."}
+  ],
+  "apples_and_bananas": [
+    {"stars": 5, "text": "Deliciously fruity with balanced chill. Unique and effective."}
+  ],
+  "blueberry_cupcake": [
+    {"stars": 5, "text": "Creamy blueberry taste with an even smoother high. Excellent for creativity."}
+  ]
+}
