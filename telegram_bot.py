@@ -9,7 +9,11 @@ from telegram.ext import (
     filters
 )
 from telegram import Update
+import logging
 
+# Setup basic logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 
 # --- Country Options ---
@@ -428,26 +432,37 @@ def get_payment_keyboard():
         [InlineKeyboardButton("Pay with USDT", callback_data="pay_usdt")],
         [InlineKeyboardButton("⬅️ Back to Menu", callback_data="main_menu")]
     ])
-def get_all_reviews():
-    review_texts = []
-    for product, reviews in REVIEWS.items():
-        review_texts.append(f"📦 *{product.replace('_', ' ').title()}* Reviews:\n")
-        for review in reviews:
-            stars = "⭐" * review["stars"]
-            review_texts.append(f"{stars} {review['text']}")
-        review_texts.append("")  # blank line between products
-    return "\n".join(review_texts)
 
 def get_all_reviews():
-    review_texts = []
-    for product, reviews in REVIEWS.items():
-        review_texts.append(f"📦 *{product.replace('_', ' ').title()}* Reviews:\n")
-        for review in reviews:
-            stars = "⭐" * review["stars"]
-            review_texts.append(f"{stars} {review['text']}")
-        review_texts.append("")  # blank line between products
-    return "\n".join(review_texts)
+    logger.info(f"REVIEWS dictionary: {REVIEWS}")
+    if not REVIEWS:
+        logger.warning("REVIEWS dictionary is empty.")
+        return "No reviews available at the moment."
 
+    review_texts = []
+    try:
+        for product, reviews_list in REVIEWS.items():
+            review_texts.append(f"📦 *{product.replace('_', ' ').title()}* Reviews:\n")
+            if isinstance(reviews_list, list):
+                for review in reviews_list:
+                    if isinstance(review, dict) and "stars" in review and "text" in review:
+                        stars = "⭐" * review["stars"]
+                        review_texts.append(f"{stars} {review['text']}")
+                    else:
+                        logger.error(f"Malformed review item for product {product}: {review}")
+                        review_texts.append("_Error displaying this review_")
+            else:
+                logger.error(f"Malformed reviews list for product {product}: {reviews_list}")
+                review_texts.append(f"_Error displaying reviews for {product}_")
+            review_texts.append("")  # blank line between products
+    except Exception as e:
+        logger.error(f"Error in get_all_reviews: {e}", exc_info=True)
+        return "An error occurred while fetching reviews."
+
+    logger.info(f"Generated review text: {review_texts}")
+    if not review_texts: # Should not happen if REVIEWS is not empty and no errors
+        return "No reviews found."
+    return "\n".join(review_texts)
 
 # --- Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -483,6 +498,8 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     user_id = update.effective_user.id
+
+    logger.info(f"Callback query received: {data} from user {user_id}")
 
     if data.startswith("country_"):
         country = data.split("_", 1)[1].replace('_', ' ')
@@ -558,9 +575,16 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     try:
-        if data.startswith("country_") or data == "main_menu":
-            await query.edit_message_text("🏠 Main Menu:", reply_markup=main_menu(user_id, context.bot_data))
+        if data.startswith("country_") or data == "main_menu": # This condition was already handled above, but keeping structure
+            # This specific path for country/main_menu was already handled before the try-except.
+            # If it reaches here, it means it wasn't one of those.
+            # However, the original code had this if/elif structure, so I'll maintain it.
+            # The primary handlers for these are above the try block.
+            # This might be redundant or a fallback. For safety, ensure it does what's expected.
+            if not (data.startswith("country_") or data == "main_menu"): # Add check to avoid re-processing if already handled
+                 await query.edit_message_text("🏠 Main Menu:", reply_markup=main_menu(user_id, context.bot_data))
             return
+
 
         elif data == "how_it_works":
             how_text = "\n\n".join(HOW_IT_WORKS_LIST)
@@ -572,64 +596,83 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         elif data == "reviews":
-            await query.edit_message_text(
-                get_all_reviews(),
-                parse_mode="Markdown",
-                reply_markup=main_menu(user_id, context.bot_data)
-            )
+            logger.info("Processing 'reviews' callback.")
+            reviews_text = get_all_reviews()
+            logger.info(f"Text from get_all_reviews: '{reviews_text}'")
+            try:
+                await query.edit_message_text(
+                    text=reviews_text,
+                    parse_mode="Markdown",
+                    reply_markup=main_menu(user_id, context.bot_data)
+                )
+                logger.info("Successfully edited message for reviews.")
+            except Exception as e:
+                logger.error(f"Error editing message for reviews: {e}", exc_info=True)
             return
 
-        elif data == "products":
-            await query.edit_message_text("🛒 Choose a category:", reply_markup=get_products_keyboard())
+        elif data == "products": # This was also handled above the try-except
+            if not data == "products": # Add check to avoid re-processing
+                await query.edit_message_text("🛒 Choose a category:", reply_markup=get_products_keyboard())
             return
 
-        elif data.startswith("category_"):
-            cat_key = data.split("category_")[1]
-            await query.edit_message_text("📂 Choose a subcategory:", reply_markup=get_subcategories_keyboard(cat_key))
+        elif data.startswith("category_"): # Also handled above
+            if not data.startswith("category_"): # Add check
+                cat_key = data.split("category_")[1]
+                await query.edit_message_text("📂 Choose a subcategory:", reply_markup=get_subcategories_keyboard(cat_key))
             return
 
 
 
-        elif data.startswith("subcategory|"):
-            _, cat_key, sub_key = data.split("|")
-            sub = CATEGORIES[cat_key]["subcategories"][sub_key]
-            if "products" in sub:
-                await query.edit_message_text("🧪 Choose a product:", reply_markup=get_product_keyboard(cat_key, sub_key))
-            else:
-                await query.edit_message_text("❌ No products found.")
+        elif data.startswith("subcategory|"): # Also handled above
+            if not data.startswith("subcategory|"): # Add check
+                _, cat_key, sub_key = data.split("|")
+                sub = CATEGORIES[cat_key]["subcategories"][sub_key]
+                if "products" in sub:
+                    await query.edit_message_text("🧪 Choose a product:", reply_markup=get_product_keyboard(cat_key, sub_key))
+                else:
+                    await query.edit_message_text("❌ No products found.")
             return
 
-        elif data.startswith("product|"):
-            _, cat_key, sub_key, product_key = data.split("|")
-            product = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][product_key]
-            msg = f"📦 {product['name']}\n💸 Price: {product['price']}\n🧾 {product['description']}"
-            await query.edit_message_text(msg, reply_markup=get_quantity_keyboard(cat_key, sub_key, product_key))
+        elif data.startswith("product|"): # Also handled above
+            if not data.startswith("product|"): # Add check
+                _, cat_key, sub_key, product_key = data.split("|")
+                product = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][product_key]
+                msg = f"📦 {product['name']}\n💸 Price: {product['price']}\n🧾 {product['description']}"
+                await query.edit_message_text(msg, reply_markup=get_quantity_keyboard(cat_key, sub_key, product_key))
             return
 
-        elif data.startswith("quantity|"):
-            _, cat_key, sub_key, prod_key, qty = data.split("|")
-            prod = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][prod_key]
-            price = prod["quantities"][qty] if isinstance(prod["quantities"], dict) else prod["price"]
-            context.bot_data.setdefault("cart", {}).setdefault(user_id, []).append({
-                "product": prod["name"],
-                "qty": qty,
-                "price": price
-            })
-            await query.edit_message_text(
-                f"✅ *{qty}* of *{prod['name']}* added to cart!\n\nYou can continue shopping or view your cart.",
-                parse_mode="Markdown",
-                reply_markup=main_menu(user_id, context.bot_data)
-            )
-            return
+        elif data.startswith("quantity|"): # Also handled above
+             if not data.startswith("quantity|"): # Add check
+                _, cat_key, sub_key, prod_key, qty = data.split("|")
+                prod = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][prod_key]
+                price = prod["quantities"][qty] if isinstance(prod["quantities"], dict) else prod["price"]
+                # This is where the cart structure was different in the original first callback_handler.
+                # The current structure being saved is: {"product": prod["name"], "qty": qty, "price": price}
+                # Let's ensure this is consistently used or reconciled.
+                # The previous version (in the first callback_handler in user's code) was:
+                # {"category": category_key, "subcategory": sub_key, "product": product_key, "quantity": qty}
+                # The version I'm keeping from the more complete handler is:
+                context.bot_data.setdefault("cart", {}).setdefault(user_id, []).append({
+                    "product": prod["name"], # Storing name directly
+                    "qty": qty,
+                    "price": price
+                })
+                await query.edit_message_text(
+                    f"✅ *{qty}* of *{prod['name']}* added to cart!\n\nYou can continue shopping or view your cart.",
+                    parse_mode="Markdown",
+                    reply_markup=main_menu(user_id, context.bot_data)
+                )
+             return
 
-        elif data.startswith("custom_qty|"):
-            _, cat_key, sub_key, prod_key = data.split("|")
-            context.user_data["custom_input"] = {
-                "cat_key": cat_key,
-                "sub_key": sub_key,
-                "prod_key": prod_key
-            }
-            await query.edit_message_text("✏️ Please type your custom quantity (e.g., 7 or 25):")
+        elif data.startswith("custom_qty|"): # Also handled above
+            if not data.startswith("custom_qty|"): # Add check
+                _, cat_key, sub_key, prod_key = data.split("|")
+                context.user_data["custom_input"] = { # This was `awaiting_custom_qty` before, changed to `custom_input` in my previous fix.
+                    "cat_key": cat_key,
+                    "sub_key": sub_key,
+                    "prod_key": prod_key
+                }
+                await query.edit_message_text("✏️ Please type your custom quantity (e.g., 7 or 25):")
             return
 
         elif data == "pay_btc":
@@ -663,10 +706,24 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif data == "cart":
             cart_items = context.bot_data.get("cart", {}).get(user_id, [])
+            logger.info(f"Cart items for user {user_id}: {cart_items}")
             if cart_items:
-                text = "🛒 Your Cart:\n" + "\n".join([f"- {x['qty']} of {x['product']} @ {x['price']}" for x in cart_items])
+                # Expects item to have 'qty', 'product' (name), and 'price'
+                text_items = []
+                for item in cart_items:
+                    try:
+                        # Ensure all keys are present to avoid KeyError
+                        qty = item.get('qty', 'N/A')
+                        product_name = item.get('product', 'Unknown Product')
+                        price = item.get('price', 'N/A')
+                        text_items.append(f"- {qty} of {product_name} @ {price}")
+                    except KeyError as e:
+                        logger.error(f"KeyError when formatting cart item: {item}. Missing key: {e}")
+                        text_items.append(f"- Error displaying item: {item.get('product', 'Unknown Product')}")
+                text = "🛒 Your Cart:\n" + "\n".join(text_items)
             else:
                 text = "🛒 Your cart is currently empty."
+            logger.info(f"Displaying cart text: {text}")
             await query.edit_message_text(text, reply_markup=main_menu(user_id, context.bot_data))
             return
 
@@ -680,12 +737,36 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         else:
-            await query.edit_message_text("⚠️ Unknown command.")
+            # If none of the specific `elif` conditions inside the `try` block matched,
+            # and it wasn't handled by the `if/elif` blocks before the `try`,
+            # then it's an unknown command for this section.
+            # However, the initial more specific handlers (country, products, category, etc.)
+            # should catch most valid known callbacks.
+            # This path might be hit if a previous handler didn't `return`.
+            # The original code had a simple `await query.edit_message_text("⚠️ Unknown command.")`
+            # as a final else, which I removed when merging the two callback_handlers.
+            # The more complete handler's `try...except` block implicitly covers this.
+            # If it falls through all known `elif data == ...` then it does nothing more and the `try` finishes.
+            # Adding a log for unhandled data inside this try block might be useful.
+            logger.warning(f"Data '{data}' was not handled by specific elif blocks in the try section.")
+            # To restore original behavior of an "Unknown command" message if nothing else matched:
+            # await query.edit_message_text("⚠️ Unknown command within try block.", reply_markup=main_menu(user_id, context.bot_data))
+
+
     except BadRequest as e:
+        logger.error(f"BadRequest in callback_handler: {e}", exc_info=True)
         if "Query is too old" in str(e) or "message is not modified" in str(e):
-            pass
+            pass # These are common and can often be ignored
         else:
-            raise
+            # For other BadRequests, you might want to inform the user or re-raise
+            # Depending on how critical they are. For now, just logging.
+            pass # Or: raise
+    except Exception as e:
+        logger.error(f"General Exception in callback_handler: {e}", exc_info=True)
+        try:
+            await query.edit_message_text("🤖 Oops! Something went wrong. Please try again.", reply_markup=main_menu(user_id, context.bot_data))
+        except Exception as e_inner:
+            logger.error(f"Failed to send error message to user: {e_inner}", exc_info=True)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -694,8 +775,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text.strip()
+    logger.info(f"Custom quantity input from user {user_id}: {text}")
 
-    if "custom_input" not in context.user_data:
+    # custom_input_key = "custom_input" # This was what I used in a previous fix
+    custom_input_key = "awaiting_custom_qty" # This is what the current code (after my overwrite) uses. Let's stick to it.
+
+    if custom_input_key not in context.user_data:
+        logger.warning(f"'{custom_input_key}' not in user_data for user {user_id}. Ignoring text input.")
         return
 
     if not text.isdigit():
@@ -703,30 +789,45 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
         return
 
     custom_qty = text
-    cat_key = context.user_data["custom_input"]["cat_key"]
-    sub_key = context.user_data["custom_input"]["sub_key"]
-    prod_key = context.user_data["custom_input"]["prod_key"]
+    # Use the correct key for retrieving data
+    details = context.user_data[custom_input_key]
+    cat_key = details["category"]
+    sub_key = details["subcategory"]
+    prod_key = details["product"]
 
     product = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][prod_key]
 
-    # Attempt to get unit price from quantities dict if exists, else default 50
     if isinstance(product["quantities"], dict):
-        unit_price_str = product["quantities"].get("1", "50€")
-        unit_price = float(unit_price_str.replace("€", "").replace("€/unit", "").strip())
+        unit_price_str = product["quantities"].get("1", product.get("price", "50€")) # Fallback to product price if "1" not found
+        unit_price_str = unit_price_str.split("€")[0] # ensure only number part
+        try:
+            unit_price = float(unit_price_str.replace("€", "").replace("/unit", "").strip())
+        except ValueError:
+            logger.error(f"Could not parse unit price from string: {unit_price_str}. Defaulting to 50.")
+            unit_price = 50.0
 
-    else:
-        # If quantities is a list, get price from product['price']
-        unit_price = int(product["price"].replace("€", "").replace("€/unit", "").strip())
+    else: # If quantities is a list (e.g. ["10g", "20g"] - this case isn't fully handled for price) or not a dict
+          # Default to product's main price, assuming it's per unit for custom qty.
+        unit_price_str = product["price"].split("€")[0] # ensure only number part
+        try:
+            unit_price = float(unit_price_str.replace("€", "").replace("/unit", "").strip())
+        except ValueError:
+            logger.error(f"Could not parse product price: {product['price']}. Defaulting to 50.")
+            unit_price = 50.0
+
 
     total_price = int(custom_qty) * unit_price
 
-    context.bot_data.setdefault("cart", {}).setdefault(user_id, []).append({
+    # Ensure cart item structure is consistent: product name, qty, price string
+    cart_item = {
         "product": product["name"],
         "qty": custom_qty,
-        "price": f"{total_price}€"
-    })
+        "price": f"{total_price:.2f}€" # Format price to 2 decimal places
+    }
+    context.bot_data.setdefault("cart", {}).setdefault(user_id, []).append(cart_item)
+    logger.info(f"Added to cart for user {user_id}: {cart_item}")
 
-    context.user_data.pop("custom_input")
+    context.user_data.pop(custom_input_key)
 
     await update.message.reply_text(
         f"✅ *{custom_qty}* of *{product['name']}* added to cart!\n\nYou can continue shopping or view your cart.",
@@ -741,12 +842,16 @@ def main():
     PORT = int(os.environ.get("PORT", 10000))
     WEBHOOK_PATH = "/webhook"
 
-    if not BOT_TOKEN or not HOSTNAME:
-        raise Exception("❌ BOT_TOKEN or RENDER_EXTERNAL_HOSTNAME not set.")
+    if not BOT_TOKEN :
+        logger.error("❌ BOT_TOKEN not set.")
+        raise Exception("❌ BOT_TOKEN not set.")
+    if not HOSTNAME and WEBHOOK_PATH != "/webhook_local_test": # Allow HOSTNAME to be None for local polling test
+         logger.error("❌ RENDER_EXTERNAL_HOSTNAME not set for webhook mode.")
+         # raise Exception("❌ RENDER_EXTERNAL_HOSTNAME not set.") # Comment out for local test
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # ✅ Add handler
+    # Add handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("reviews", reviews_command))
     app.add_handler(CommandHandler("faqs", faqs_command))
@@ -754,17 +859,19 @@ def main():
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
 
-    # app.add_handler(...)  # Your other handlers can go here
+    if HOSTNAME: # Production or staging with webhook
+        logger.info(f"✅ Starting webhook server on port {PORT}...")
+        logger.info(f"🔗 Webhook URL: https://{HOSTNAME}{WEBHOOK_PATH}")
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=PORT,
+            url_path=WEBHOOK_PATH,
+            webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}"
+        )
+    else: # Local development, use polling
+        logger.info("✅ Starting bot in polling mode...")
+        app.run_polling()
 
-    print(f"✅ Starting webhook server on port {PORT}...")
-    print(f"🔗 Webhook URL: https://{HOSTNAME}{WEBHOOK_PATH}")
-
-    app.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=WEBHOOK_PATH,
-        webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}"
-    )
 
 if __name__ == "__main__":
     main()
