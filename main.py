@@ -175,7 +175,7 @@ CATEGORIES = {
                     "love_affair": {
                         "name": "Love Affair - Sativa - 2g", "price": "60€/unit",
                         "description": "Watermelon Gelato is a flavorful indica strain known for its sweet, fruity aroma and ultra-smooth smoke. Bursting with notes of watermelon, berries, and creamy gelato undertones, it delivers a calming body high that's perfect for relaxation, stress relief, and peaceful evenings. Ideal for unwinding without heavy sedation, this strain combines flavor with tranquility.",
-                        "quantities": { "50": "35.00€", "20": "40.00€", "5": "45.00€", "1": "50.00€" } # Prices seem off for 2g
+                        "quantities": { "50": "35.00€", "20": "40.00€", "5": "45.00€", "1": "50.00€" }
                     },
                     "peach_cresc": {
                         "name": "Peach Crescendo - Sativa - 2g", "price": "60€/unit",
@@ -266,9 +266,24 @@ REVIEWS = {
     ],
     "wiz_tree": [
         {"stars": 5, "text": "Perfect for daytime use, very uplifting."},
+        {"stars": 4, "text": "Good focus, but a bit dry."}
     ],
     "double_bubble": [
-        {"stars": 4, "text": "Sweet and fun, good hybrid."}
+        {"stars": 4, "text": "Sweet and fun, good hybrid."},
+        {"stars": 5, "text": "Exactly like the candy, amazing buzz!"}
+    ],
+    "snoop_og": [
+        {"stars": 5, "text": "True OG vibes, super relaxing for evenings."},
+        {"stars": 4, "text": "Potent stuff, definitely an indica knockout."}
+    ],
+    "golden_pineapple": [
+        {"stars": 5, "text": "So fruity and uplifting, great for creativity!"}
+    ],
+    "kosmic_kiwi": [ # From Hidden Hills
+        {"stars": 4, "text": "Smooth vape, interesting kiwi flavor. Nice hybrid effects."}
+    ],
+    "peach_cresc": [ # From t10b2g
+        {"stars": 5, "text": "The peach flavor is incredible. Really energizing."}
     ]
 }
 
@@ -331,12 +346,9 @@ def get_quantity_keyboard(category_key, sub_key, product_key):
             keyboard.append([
                 InlineKeyboardButton(f"{qty} - {price}", callback_data=f"quantity|{category_key}|{sub_key}|{product_key}|{qty}")
             ])
-    else: # Should ideally not happen if data is consistent, but as a fallback
+    else:
         logger.warning(f"Product {product_key} quantities is not a dict: {quantities}. Using product price.")
-        # This case implies quantities might be a list of quantity strings, not price map.
-        # For simplicity, we'll just offer custom quantity if this happens, or rely on product['price'] if available.
-        # The original code didn't fully address this for display here.
-        pass # Custom quantity button will still be there
+        pass
 
     keyboard.append([
         InlineKeyboardButton("✏️ Enter Custom Quantity", callback_data=f"custom_qty|{category_key}|{sub_key}|{product_key}")
@@ -362,7 +374,6 @@ def get_all_reviews():
     review_texts = []
     try:
         for product_key, reviews_list in REVIEWS.items():
-            # Try to find product name from CATEGORIES for better display
             product_name_display = product_key.replace('_', ' ').title()
             found_product = False
             for cat_data in CATEGORIES.values():
@@ -386,7 +397,7 @@ def get_all_reviews():
             else:
                 logger.error(f"Malformed reviews list for product {product_key}: {reviews_list}")
                 review_texts.append(f"_Error displaying reviews for {product_name_display}_")
-            review_texts.append("")  # blank line between products
+            review_texts.append("")
     except Exception as e:
         logger.error(f"Error in get_all_reviews: {e}", exc_info=True)
         return "An error occurred while fetching reviews."
@@ -442,11 +453,15 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- Callback Handler ---
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer() # Acknowledge callback query
+    try:
+        await query.answer()
+    except Exception as e:
+        logger.error(f"Failed to answer callback query (ID: {query.id}): {e}", exc_info=True)
+
     data = query.data
     user_id = update.effective_user.id
     
-    logger.info(f"Callback query received: Data='{data}', UserID={user_id}")
+    logger.info(f"Callback query received: Data='{data}', UserID={user_id}, QueryID={query.id}")
 
     try:
         if data.startswith("country_"):
@@ -499,12 +514,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _, category_key, sub_key, product_key, qty_selected = data.split("|")
             product_data = CATEGORIES[category_key]["subcategories"][sub_key]["products"][product_key]
 
-            # Determine price: if quantities is a dict, get price for qty_selected, else use product_data['price']
-            item_price_str = ""
-            if isinstance(product_data["quantities"], dict):
-                item_price_str = product_data["quantities"].get(qty_selected, product_data["price"])
-            else: # Fallback if quantities isn't a dict (should not happen with good data)
-                item_price_str = product_data["price"]
+            item_price_str = product_data["quantities"].get(qty_selected, product_data["price"]) if isinstance(product_data["quantities"], dict) else product_data["price"]
 
             cart_item = {
                 "product": product_data["name"],
@@ -521,88 +531,148 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data.startswith("custom_qty|"):
             _, category_key, sub_key, product_key = data.split("|")
             context.user_data["awaiting_custom_qty"] = {
-                "category": category_key,
-                "subcategory": sub_key,
-                "product": product_key
+                "category": category_key, "subcategory": sub_key, "product": product_key
             }
             logger.info(f"User {user_id} requesting custom quantity for product: {product_key}")
             await query.edit_message_text("✏️ Please type the quantity you want (e.g., 10 or 2):")
 
         elif data == "how_it_works":
             logger.info(f"User {user_id} requested 'how_it_works'.")
-            how_text = "\n\n".join(HOW_IT_WORKS_LIST)
-            await query.edit_message_text(
-                how_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data)
-            )
+            await query.edit_message_text("\n\n".join(HOW_IT_WORKS_LIST), parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
         elif data == "reviews":
             logger.info(f"User {user_id} requested 'reviews'.")
-            reviews_text = get_all_reviews()
-            await query.edit_message_text(
-                reviews_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data)
-            )
+            await query.edit_message_text(get_all_reviews(), parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
         elif data == "faqs":
             logger.info(f"User {user_id} requested 'faqs'.")
-            faq_text = "\n\n".join(FAQ_LIST)
-            await query.edit_message_text(
-                faq_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data)
-            )
+            await query.edit_message_text("\n\n".join(FAQ_LIST), parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
         elif data == "cart":
             cart_items = context.bot_data.get("cart", {}).get(user_id, [])
             logger.info(f"User {user_id} requested 'cart'. Items: {cart_items}")
+            text_items = []
             if cart_items:
-                text_items = []
                 for item in cart_items:
                     qty = item.get('qty', 'N/A')
                     product_name = item.get('product', 'Unknown Product')
                     price = item.get('price', 'N/A')
                     text_items.append(f"- {qty} of {product_name} @ {price}")
-                text = "🛒 Your Cart:\n" + "\n".join(text_items)
+                text_to_send = "🛒 Your Cart:\n" + "\n".join(text_items)
             else:
-                text = "🛒 Your cart is currently empty."
-            await query.edit_message_text(text, reply_markup=main_menu(user_id, context.bot_data))
+                text_to_send = "🛒 Your cart is currently empty."
+            await query.edit_message_text(text_to_send, reply_markup=main_menu(user_id, context.bot_data))
 
-        elif data == "orders": # Placeholder for orders
+        elif data == "orders":
             logger.info(f"User {user_id} requested 'orders'.")
-            await query.edit_message_text("📦 You have no past orders.", reply_markup=main_menu(user_id, context.bot_data))
+            # Updated "Orders" text
+            orders_text = "📦 *Your Orders*\n\nCurrently, you have no past orders displayed here. Once you complete a purchase, it will appear in this section.\n\nIf you believe you have past orders that aren't showing, please contact support (details to be provided)."
+            await query.edit_message_text(orders_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
+
+        elif data == "user_guide":
+            logger.info(f"User {user_id} requested 'user_guide'.")
+            user_guide_text = """*📘 User Guide: Placing Your Order*
+
+Ordering with us is simple! Follow these steps:
+
+1️⃣ *Select Your Country:*
+   - If you haven't already, use the `/start` command and choose your country from the list.
+
+2️⃣ *Browse Products:*
+   - Tap the "🎁 Products" button on the main menu.
+   - Select a product category (e.g., "The 10/10 Boys").
+   - Choose a subcategory (e.g., "The 10/10 Boys - 1g").
+   - Tap on the product you're interested in.
+
+3️⃣ *Choose Quantity:*
+   - You'll see product details and available quantities with prices.
+   - Tap a predefined quantity button (e.g., "1 - 50.00€").
+   - *Alternatively*, tap "✏️ Enter Custom Quantity" and then type your desired amount in grams or units when prompted (e.g., type "3").
+
+4️⃣ *Add to Cart:*
+   - After selecting a quantity, the item is automatically added to your cart.
+   - You'll see a confirmation and be returned to the main menu.
+
+5️⃣ *Review Your Cart:*
+   - Tap "🛒 Cart (X)" on the main menu at any time to see what you've added.
+
+6️⃣ *Proceed to Payment:*
+   - After adding items, you can click on "🛒 Cart" and then choose a payment option if available, or follow prompts for payment (e.g., BTC/USDT).
+
+Happy shopping!"""
+            await query.edit_message_text(user_guide_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
+
+        elif data == "ref_earn":
+            logger.info(f"User {user_id} requested 'ref_earn'.")
+            ref_earn_text = """*📢 Refer & Earn*
+
+Our referral program is currently under development! We're working on exciting ways for you to earn rewards by sharing our products with your friends.
+
+Stay tuned for updates on how you can benefit from spreading the word!"""
+            await query.edit_message_text(ref_earn_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
+
+        elif data == "coupon":
+            logger.info(f"User {user_id} requested 'coupon'.")
+            coupon_text = """*🏷️ Coupons & Promotions*
+
+We love giving back to our community!
+Keep an eye on our announcements for special promotions, discounts, and coupon codes that you can use with your orders.
+
+Currently, all available prices are listed with the products. If a coupon system is implemented, you'll typically apply codes at a checkout stage."""
+            await query.edit_message_text(coupon_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
+
+        elif data == "friendly_services":
+            logger.info(f"User {user_id} requested 'friendly_services'.")
+            friendly_services_text = """*❤️ Friendly Services*
+
+We're committed to providing you with a great experience! Here are some of the friendly services we aim to offer:
+
+✅ *Quality Products:* A curated selection of high-quality items.
+✅ *Discreet Shipping:* Your privacy is important to us. All orders are packaged and shipped discreetly.
+✅ *Clear Information:* We aim to provide clear details about our products and how to order via our User Guide and FAQs.
+✅ *Support:* If you have questions, our '❓ FAQs' or '✋ Help' sections are your first stop.
+
+Your satisfaction is our priority!"""
+            await query.edit_message_text(friendly_services_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
+
+        elif data == "help":
+            logger.info(f"User {user_id} clicked help button.")
+            help_button_text = """*✋ Bot Help & Navigation*
+
+Here's a quick guide to the main menu buttons:
+
+🤔 *How does it work?:* General overview of the bot's process.
+📘 *User Guide:* Step-by-step instructions on placing an order.
+🎁 *Products:* Browse and select items from our categories.
+📊 *Reviews:* See what others say about our products.
+📢 *Ref & Earn:* Info about our upcoming referral program.
+🏷 *Coupon:* Details about promotions.
+❤️ *Friendly Services:* Learn about our commitment to you.
+❓ *FAQs:* Find answers to frequently asked questions.
+🛒 *Cart (X):* View and manage items you've added.
+📦 *Orders (X):* Check your order history (coming soon).
+
+Use these buttons to navigate. If you get stuck, try returning to the /start menu or use the /help command for a general command list."""
+            await query.edit_message_text(help_button_text, parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
 
         elif data == "pay_btc":
             logger.info(f"User {user_id} chose Pay with BTC.")
-            await query.edit_message_text(
-                "🪙 Send BTC to:\n`bc1q0q5j52rj50gwd2f7nlqqp89kgqdjqt0rcewr0m`",
-                parse_mode="Markdown",
-                reply_markup=main_menu(user_id, context.bot_data)
-            )
+            await query.edit_message_text("🪙 Send BTC to:\n`bc1q0q5j52rj50gwd2f7nlqqp89kgqdjqt0rcewr0m`", parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
         elif data == "pay_usdt":
             logger.info(f"User {user_id} chose Pay with USDT.")
-            await query.edit_message_text(
-                "🪙 Send USDT to:\n`TRC20 TXTmvHkxL986msuvJU4KoEJsheiVSScC9J`",
-                parse_mode="Markdown",
-                reply_markup=main_menu(user_id, context.bot_data)
-            )
-        # Add other specific callback handlers like help, user_guide, ref_earn, coupon, friendly_services if needed
-        elif data in ["help", "user_guide", "ref_earn", "coupon", "friendly_services"]:
-            logger.info(f"User {user_id} clicked on '{data}'. This feature is not yet fully implemented.")
-            await query.edit_message_text(
-                f"🚧 The '{data.replace('_', ' ').title()}' feature is coming soon!",
-                reply_markup=main_menu(user_id, context.bot_data)
-            )
+            await query.edit_message_text("🪙 Send USDT to:\n`TRC20 TXTmvHkxL986msuvJU4KoEJsheiVSScC9J`", parse_mode="Markdown", reply_markup=main_menu(user_id, context.bot_data))
         else:
             logger.warning(f"Unhandled callback data '{data}' for user {user_id}.")
             await query.edit_message_text("⚠️ Unknown command or action.", reply_markup=main_menu(user_id, context.bot_data))
 
     except BadRequest as e:
-        logger.error(f"BadRequest in callback_handler for data '{data}', user {user_id}: {e}", exc_info=True)
-        if "Query is too old" in str(e) or "message is not modified" in str(e):
-            pass
-        else: # Potentially re-raise or send a generic error to user for other BadRequests
+        logger.error(f"BadRequest in callback_handler for data '{data}', user {user_id}, QueryID {query.id}: {e}", exc_info=True)
+        if "message is not modified" not in str(e).lower() and "query is too old" not in str(e).lower():
             try:
-                await query.edit_message_text("🤖 Error processing your request. Please try again.", reply_markup=main_menu(user_id, context.bot_data))
+                 await query.edit_message_text("🤖 Error processing your request. Please try again.", reply_markup=main_menu(user_id, context.bot_data))
             except Exception as e_inner:
-                logger.error(f"Failed to send error message to user after BadRequest: {e_inner}", exc_info=True)
+                 logger.error(f"Failed to send error message to user after BadRequest: {e_inner}", exc_info=True)
     except Exception as e:
-        logger.error(f"General Exception in callback_handler for data '{data}', user {user_id}: {e}", exc_info=True)
+        logger.error(f"General Exception in callback_handler for data '{data}', user {user_id}, QueryID {query.id}: {e}", exc_info=True)
         try:
-            await query.edit_message_text("🤖 Oops! Something went wrong. Please try again.", reply_markup=main_menu(user_id, context.bot_data))
+            await query.edit_message_text("🤖 Oops! Something went terribly wrong. Please try again later.", reply_markup=main_menu(user_id, context.bot_data))
         except Exception as e_inner:
             logger.error(f"Failed to send generic error message to user: {e_inner}", exc_info=True)
 
@@ -615,8 +685,6 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
     custom_qty_details_key = "awaiting_custom_qty"
     if custom_qty_details_key not in context.user_data:
         logger.warning(f"'{custom_qty_details_key}' not in user_data for user {user_id}. Ignoring text input: '{text_input}'")
-        # Optionally, send a message like "Please select a product before entering quantity."
-        # await update.message.reply_text("Please select a product first if you want to specify a custom quantity.")
         return
 
     if not text_input.isdigit() or int(text_input) <= 0:
@@ -626,41 +694,27 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
 
     custom_qty_str = text_input
     details = context.user_data[custom_qty_details_key]
-    cat_key = details["category"]
-    sub_key = details["subcategory"]
-    prod_key = details["product"]
-
+    cat_key, sub_key, prod_key = details["category"], details["subcategory"], details["product"]
     product_data = CATEGORIES[cat_key]["subcategories"][sub_key]["products"][prod_key]
 
-    # Determine unit price for custom quantity calculation
-    # Prefer "1" key in quantities, then product's base price, then default
-    unit_price_val = 50.0 # Default unit price
+    unit_price_val = 50.0
+    price_source_str = product_data.get("price", "50€")
     if isinstance(product_data.get("quantities"), dict):
-        price_str = product_data["quantities"].get("1", product_data.get("price", "50€"))
-    else:
-        price_str = product_data.get("price", "50€")
+        price_source_str = product_data["quantities"].get("1", price_source_str)
 
     try:
-        # Extract numeric part of price_str (e.g., "50€" -> 50.0)
-        numeric_part = ''.join(filter(lambda x: x.isdigit() or x == '.', price_str.split('€')[0]))
-        if numeric_part:
-            unit_price_val = float(numeric_part)
-        else: # Fallback if parsing fails
-            logger.error(f"Could not parse unit price from '{price_str}' for product {prod_key}. Defaulting to {unit_price_val}.")
+        numeric_part = ''.join(filter(lambda x: x.isdigit() or x == '.', price_source_str.split('€')[0]))
+        if numeric_part: unit_price_val = float(numeric_part)
+        else: logger.error(f"Could not parse numeric part from '{price_source_str}' for {prod_key}. Defaulting to {unit_price_val}.")
     except ValueError:
-        logger.error(f"ValueError parsing unit price from '{price_str}' for product {prod_key}. Defaulting to {unit_price_val}.")
+        logger.error(f"ValueError parsing unit price from '{price_source_str}' for {prod_key}. Defaulting to {unit_price_val}.")
 
     total_price = int(custom_qty_str) * unit_price_val
+    cart_item = {"product": product_data["name"], "qty": custom_qty_str, "price": f"{total_price:.2f}€"}
 
-    cart_item = {
-        "product": product_data["name"],
-        "qty": custom_qty_str,
-        "price": f"{total_price:.2f}€"
-    }
     context.bot_data.setdefault("cart", {}).setdefault(user_id, []).append(cart_item)
     logger.info(f"Added custom quantity to cart for user {user_id}: {cart_item}")
-
-    context.user_data.pop(custom_qty_details_key) # Clear the state
+    context.user_data.pop(custom_qty_details_key)
 
     await update.message.reply_text(
         f"✅ *{custom_qty_str}* of *{product_data['name']}* (total {total_price:.2f}€) added to cart!\n\nYou can continue shopping or view your cart.",
@@ -672,9 +726,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
 def main():
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-    PORT = int(os.environ.get("PORT", 10000)) # Default to 10000 if not set
-    # Use a different path for local testing if you don't want to expose /webhook
-    # For Render, /webhook is fine.
+    PORT = int(os.environ.get("PORT", 10000))
     WEBHOOK_PATH = "/webhook"
 
     if not BOT_TOKEN:
@@ -683,25 +735,19 @@ def main():
 
     app = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # Register handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("reviews", reviews_command))
     app.add_handler(CommandHandler("faqs", faqs_command))
-    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("help", help_command)) # For /help command
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_custom_quantity_input))
 
     logger.info("Bot handlers registered.")
 
-    if HOSTNAME: # Running on Render or similar platform with a public hostname
+    if HOSTNAME:
         logger.info(f"Starting bot in webhook mode. Host: {HOSTNAME}, Port: {PORT}, Path: {WEBHOOK_PATH}")
-        app.run_webhook(
-            listen="0.0.0.0", # Listen on all interfaces
-            port=PORT,
-            url_path=WEBHOOK_PATH, # The path component of your webhook URL
-            webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}" # Full webhook URL
-        )
-    else: # Local development, use polling
+        app.run_webhook(listen="0.0.0.0", port=PORT, url_path=WEBHOOK_PATH, webhook_url=f"https://{HOSTNAME}{WEBHOOK_PATH}")
+    else:
         logger.info("Starting bot in polling mode for local development.")
         app.run_polling()
 
