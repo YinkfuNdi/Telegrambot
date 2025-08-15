@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -724,6 +725,7 @@ async def handle_custom_quantity_input(update: Update, context: ContextTypes.DEF
     
 # --- Main Application Setup ---
 def main():
+    load_dotenv()
     BOT_TOKEN = os.getenv("BOT_TOKEN")
     HOSTNAME = os.getenv("RENDER_EXTERNAL_HOSTNAME")
     PORT = int(os.environ.get("PORT", 10000))
