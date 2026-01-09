@@ -411,6 +411,26 @@ def get_all_reviews():
 # --- Command Handlers ---
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"Command /start received from user {update.effective_user.id}")
+    welcome_message = \"\"\"
+Welcome to The 10/10 Boys self-service vape shop 🍃.
+
+Ships From/To: United Kingdom 🇬🇧 / 🇪🇺 European Union⚡️🚚
+Currency: GBP / EUR 💷💶
+Currently Accepting: Crypto (USDT),(BTC),
+﹎﹎﹎﹎﹎﹎﹎
+Start with Help! /help and /userguide 📘.
+Type /menu then click Products (Button) or just type in /products 📦.
+Type /coupons to find discount codes 💰.Happy shopping
+Note: For Spain and Portugal we ship to Mainland and islands.
+
+Peace and Love ✌️❤️
+The 10/10 Boys ®️
+Telegram Support: @The1010Boysla
+\"\"\"
+    await update.message.reply_text(
+        welcome_message,
+        parse_mode="Markdown"
+    )
     await update.message.reply_text(
         "🌍 Please select your country:",
         reply_markup=get_country_keyboard()
